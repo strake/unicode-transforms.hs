@@ -25,14 +25,11 @@ import           Data.List                              (sortBy)
 import           Data.Ord                               (comparing)
 import qualified Data.Text.Array                        as A
 import           Data.Text.Internal                     (Text (..))
-import qualified Data.Text.Internal.Encoding.Utf16      as U16
-import           Data.Text.Internal.Fusion.Size         (betweenSize,
-                                                         upperBound)
+import           Data.Text.Internal.Fusion              (stream)
+import           Data.Text.Internal.Fusion.Size         (upperBound)
 import           Data.Text.Internal.Fusion.Types        (Step (..), Stream (..))
 import           Data.Text.Internal.Private             (runText)
 import           Data.Text.Internal.Unsafe.Char         (unsafeWrite)
-import           Data.Text.Internal.Unsafe.Char         (unsafeChr)
-import           Data.Text.Internal.Unsafe.Shift        (shiftR)
 import           GHC.ST                                 (ST (..))
 
 import qualified Data.Unicode.Properties.CombiningClass  as CC
@@ -170,23 +167,6 @@ decomposeChar mode marr index reBuf ch = do
                 sortCluster =   map fst
                               . sortBy (comparing snd)
                               . map (ap (,) CC.getCombiningClass)
-
--- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
-stream :: Text -> Stream Char
-stream (Text arr off len) = Stream next off (betweenSize (len `shiftR` 1) len)
-    where
-      !end = off+len
-      {-# INLINE next #-}
-      next !i
-          | i >= end                   = Done
-          -- shift generates only two branches instead of three in case of
-          -- range check, works quite a bit faster with llvm backend.
-          | (n `shiftR` 10) == 0x36    = Yield (U16.chr2 n n2) (i + 2)
-          | otherwise                  = Yield (unsafeChr n) (i + 1)
-          where
-            n  = A.unsafeIndex arr i
-            n2 = A.unsafeIndex arr (i + 1)
-{-# INLINE [0] stream #-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a decompose-normalized 'Text'.
 unstream :: D.DecomposeMode -> Stream Char -> Text

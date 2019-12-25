@@ -29,8 +29,9 @@ import           Data.Unicode.Types                    (NormalizationMode (..))
 -- normalization mode.
 normalize :: NormalizationMode -> Text -> Text
 normalize mode =
-    case mode of
-      NFD  -> (unstream DecomposeNFD)   . stream
-      NFKD -> (unstream DecomposeNFKD)  . stream
-      NFC  -> (unstreamC DecomposeNFD)  . stream
-      NFKC -> (unstreamC DecomposeNFKD) . stream
+    (case mode of
+       NFD  -> unstream DecomposeNFD
+       NFKD -> unstream DecomposeNFKD
+       NFC  -> unstreamC DecomposeNFD
+       NFKC -> unstreamC DecomposeNFKD) . stream
+{-# INLINABLE normalize #-}
